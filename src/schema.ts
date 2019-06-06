@@ -1,5 +1,5 @@
-import { helloSchema } from "./hello";
+import { postSchema } from "./post";
 
-const schemas = [helloSchema];
+const schemas = [postSchema];
 
 export default schemas;

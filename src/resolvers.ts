@@ -1,4 +1,4 @@
-import { helloResolver } from './hello';
-const resolvers = [helloResolver];
+import { postResolver } from "./post";
+const resolvers = [postResolver];
 
 export default resolvers;

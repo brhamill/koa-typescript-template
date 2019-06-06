@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import logger from "./logger";
-console.log(process.env.NODE_ENV);
+// console.log(process.env.NODE_ENV);
 if (fs.existsSync(".env")) {
 	logger.log("info", "Using .env file to supply config environment variables");
 	dotenv.config({ path: ".env" });
