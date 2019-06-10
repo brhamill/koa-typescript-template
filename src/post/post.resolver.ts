@@ -1,22 +1,31 @@
+import { pubsub } from '../server';
 import { postController } from './post.controller';
 
+const POST_ADDED = "POST_ADDED";
+
 const postResolver = {
+	Subscription: {
+		postAdded: {
+			subscribe: () => pubsub.asyncIterator([POST_ADDED])
+		}
+	},
 	Query: {
-		posts: async (root: any, args: any, context: any) => {
-			return await postController.posts(context);
+		getPosts: async (_: any, __: any, context: any) => {
+			return await postController.getPosts(context);
 		},
-		post: async (root: any, { id }: any, context: any) => {
-			return await postController.post(id, context);
+		getPost: async (_: any, { id }: any, context: any) => {
+			return await postController.getPost(id, context);
 		}
 	},
 	Mutation: {
-		addPost: async (root: any, args: any, context: any) => {
-			return await postController.addPost(args, context);
+		createPost: async (_: any, args: any, context: any) => {
+			pubsub.publish(POST_ADDED, { postAdded: args.post });
+			return await postController.createPost(args, context);
 		},
-		deletePost: async (root: any, { id }: any, context: any) => {
-			return await postController.deletePost(id, context);
+		removePost: async (_: any, { id }: any, context: any) => {
+			return await postController.removePost(id, context);
 		},
-		updatePost: async (root: any, args: any, context: any) => {
+		updatePost: async (_: any, args: any, context: any) => {
 			return await postController.updatePost(args, context);
 		}
 	},

@@ -3,7 +3,7 @@ import { CLIENT_ID } from "../common/util/secrets";
 import { User } from './user.model';
 
 const userController = {
-	users: (root: any, args: any) => User.find({}),
+	users: async (root: any, args: any) => await User.find({}),
 
 	findOrCreateUser: async (token: string) => {
 		if (!token) {
@@ -14,17 +14,17 @@ const userController = {
 		if (user) {
 			return user;
 		} else {
-			return userController.saveUser(googleUser);
+			return await userController.saveUser(googleUser);
 		}
 	},
-	checkIfUserExists: (email: string) => {
-		return User.findOne({ email }).exec();
+	checkIfUserExists: async (email: string) => {
+		return await User.findOne({ email }).exec();
 	},
-	saveUser: (gUser: any) => {
+	saveUser: async (gUser: any) => {
 		const { email, name, picture, given_name, family_name, locale } = gUser;
 		const user = { email, name, picture, given_name, family_name, locale };
 		const newUser = new User(user);
-		return newUser.save();
+		return await newUser.save();
 	},
 	verifyGoogleToken: async (token: string) => {
 		const ticket = await client.verifyIdToken({
@@ -32,6 +32,21 @@ const userController = {
 			audience: CLIENT_ID
 		});
 		return ticket.getPayload();
+	},
+	createUser: async(args: any, {mongo: {Users}}: any) => {
+		const newUser = {
+			name: args.name,
+			email: args.authProvider.email.email,
+			password: args.authProvider.email.password
+		};
+		const response = await Users.insertOne(newUser);
+		return Object.assign({id: response.insertedId}, newUser);
+	},
+	signinUser: async(args: any, {mongo: {Users}}: any) => {
+		const user = await Users.findOne({email: args.email.email});
+		if (args.email.password === user.password) {
+			return { token: `token-${user.email}`, user};
+		}
 	}
 };
 

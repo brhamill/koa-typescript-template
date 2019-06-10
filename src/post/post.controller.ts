@@ -1,18 +1,18 @@
 import * as mongodb from 'mongodb';
 
 const postController = {
-	posts: async ({mongo: {Posts}}: any) => {
+	getPosts: async ({mongo: {Posts}}: any) => {
 		return await Posts.find({}).toArray();
 	},
-	post: async (id: string, {mongo: {Posts}}: any) => {
+	getPost: async (id: string, {mongo: {Posts}}: any) => {
 		const _id = new mongodb.ObjectID(id);
 		return await Posts.findOne({ _id });
 	},
-	addPost: async (post: any, {mongo: {Posts}}: any) => {
-		const response = await Posts.insert(post);
-		return Object.assign({id: response.insertedId}, post);
+	createPost: async (args: any, {mongo: {Posts}}: any) => {
+		const response = await Posts.insertOne(args.post);
+		return Object.assign({id: response.insertedId}, args.post);
 	},
-	deletePost: async (id: string, {mongo: {Posts}}: any) => {
+	removePost: async (id: string, {mongo: {Posts}}: any) => {
 		const _id = new mongodb.ObjectID(id);
 		const deleted = await Posts.findOneAndDelete({ _id });
 		return deleted.value;

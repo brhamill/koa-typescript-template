@@ -1,16 +1,19 @@
-import * as Koa from 'koa';
-import { ApolloServer } from 'apollo-server-koa';
-import * as mongoose from 'mongoose';
-import { GraphQLSchema } from 'graphql';
-import { mergeSchemas } from 'graphql-tools';
+import * as Koa from "koa";
+import * as Router from "koa-router";
+import * as bodyParser from "koa-bodyparser";
+import { ApolloServer, PubSub } from "apollo-server-koa";
+import * as mongoose from "mongoose";
+import { GraphQLSchema } from "graphql";
+import { mergeSchemas } from "graphql-tools";
 import * as dotenv from "dotenv";
-import { OAuth2Client } from 'google-auth-library';
+import { OAuth2Client } from "google-auth-library";
+import { createServer } from 'http';
+const { authenticate } = require("./authentication");
+const buildDataLoaders = require('./dataloaders');
+const formatError = require('./formatError');
 
 // import connectMongo from './mongo-connector';
-const connectMongo  = require('./mongo-connector');
-
-// import { MongoHelper } from './helpers/mongo.helper';
-import { userController } from "./user/user.controller";
+const connectMongo = require("./mongo-connector");
 
 import {
 	CLIENT_ID,
@@ -22,6 +25,7 @@ import {
 import schemas from "./schema";
 import resolvers from "./resolvers";
 
+export const pubsub = new PubSub();
 
 // Load environment variables from .env file, where API keys and passwords are configured
 dotenv.config({ path: ".env" });
@@ -31,63 +35,50 @@ export const client = new OAuth2Client(CLIENT_ID);
 const start = async () => {
 	const mongo = await connectMongo();
 
-// const mongo = await MongoHelper.connect(`mongodb://localhost:27017/graphExample`); 
+	const app = new Koa();
+	const router = new Router();
+	let user: any;
 
-// help to debug mongoose
-// mongoose.set("debug", true);
+	app.use(bodyParser());
 
-// mongoose.connect(`mongodb://${MONGO_URL}:${MONGO_PORT}/${DB_NAME}`, { useNewUrlParser: true });
+	router.post("/graphql", async (ctx, next) => {
+		user = await authenticate(ctx.request, mongo.Users) || "";
+		await next();
+	});
 
-const schema: GraphQLSchema = mergeSchemas({
-	schemas,
-	resolvers
-});
+	app.use(router.routes());
+	app.use(router.allowedMethods());
 
-// GraphQL
-const server = new ApolloServer({
-	schema,
-	context: () => {
-		return {mongo};
-	}
-	// context: async ({ ctx }: any) => {
-	// 	if (!req || !req.headers) {
-	// 		return;
-	// 	}
+	const schema: GraphQLSchema = mergeSchemas({
+		schemas,
+		resolvers
+	});
 
-	// 	const token = req.headers.authorization || "";
-	// 	const checkToken = await userController.findOrCreateUser(token);
-	// 	if (!checkToken.hasOwnProperty("authorized")) {
-	// 		return { user: checkToken, authorized: true };
-	// 	}
-	// 	return checkToken;
-	// },
-	// tracing: true
-});
+	// GraphQL
+	const server = new ApolloServer({
+		schema,
+		formatError,
+		context: () => {
+			return { mongo, user, dataloaders: buildDataLoaders(mongo) };
+		},
+		debug: false,
+	});
 
+	server.applyMiddleware({ app });
 
+	const httpServer = createServer(app.callback());
+	server.installSubscriptionHandlers(httpServer);
 
+	const PORT = 4000;
 
+	// app.listen(4000, () => {
+	// 	console.log("🚀 Server ready at 4000");
+	// });
 
-const app = new Koa();
-server.applyMiddleware({ app });
-
-const PORT = 4000;
-
-app.listen(4000, () => {
-  console.log('🚀 Server ready at 4000');
-});
-
-// app.on('listening', async () => {
-//   console.info(`Listening on port ${PORT}`);
-//   try {
-//     await MongoHelper.connect(`mongodb://localhost:27017/graphExample`);
-//     console.info(`Connected to Mongo!`);
-//   } catch (err) {
-//     console.error(`Unable to connect to Mongo!`, err);
-// 	}
-// });
-
-
+	httpServer.listen({port: PORT}, () => {
+		console.log(`🚀 Server ready at http://localhost:${PORT}${server.graphqlPath}`);
+		console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}${server.subscriptionsPath}`);
+	})
 };
 
 start();

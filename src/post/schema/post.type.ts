@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-koa';
 
 const postType = gql`
 	type Post {
-		id: ID
+		id: ID!
 		author: String
 		comment: String
 	}
